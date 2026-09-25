@@ -1,16 +1,10 @@
 [package]
 name = "profile-curator-mcp"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["ahndunn@gmail.com"]
 description = "Stateless MCP server for iterative profile curation and cv-writer export"
 repository = "git@github.com:ahndunn/profile-curator.git"
-
-[package.metadata.wix]
-upgrade-guid = "0F9E7B11-1435-40E4-935B-6DDCD37D7D45"
-path-guid = "E35EAFA7-A93F-4C6C-A6C4-137E1EA51921"
-license = false
-eula = false
 
 [dependencies]
 schemars = "0.8"
