@@ -1,0 +1,19 @@
+[package]
+name = "profile-curator-mcp"
+version = "0.1.0"
+edition = "2024"
+authors = ["Profile Curator Team"]
+description = "Stateless MCP server for iterative profile curation and cv-writer export"
+
+[dependencies]
+tokio = { version = "1.43", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+schemars = "0.8"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
