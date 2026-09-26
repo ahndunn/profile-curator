@@ -14,6 +14,6 @@ RUN useradd -m -u 1000 appuser
 USER appuser
 WORKDIR /home/appuser
 
-COPY --from=builder /app/target/release/profile-curator-mcp /usr/local/bin/profile-curator-mcp
+COPY --from=builder /app/target/release/profile-curator /usr/local/bin/profile-curator
 
-ENTRYPOINT ["profile-curator-mcp"]
+ENTRYPOINT ["profile-curator"]

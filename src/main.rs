@@ -1,16 +1,17 @@
-use profile_curator_mcp::Server;
+use clap::Parser;
+use profile_curator::Cli;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Write diagnostics strictly to stderr so stdout remains clean for MCP JSON-RPC
+    // Write diagnostics strictly to stderr so stdout remains clean for piping and JSON-RPC
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn")))
         .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
         .init();
 
-    let server = Server::new();
-    server.run_stdio().await?;
+    let cli = Cli::parse();
+    cli.execute().await?;
 
     Ok(())
 }

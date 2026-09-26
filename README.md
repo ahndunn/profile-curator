@@ -1,47 +1,101 @@
-# Profile Curator MCP Server
+# profile-curator
 
-A stateless, decoupled Model Context Protocol (MCP) server written in Rust that enables conversational AI agents to iteratively interview candidates, incrementally curate their professional background and future career orientation, and export directly to `cv-writer`.
+A high-performance, LLM-friendly CLI engine written in Rust that enables conversational AI agents to iteratively interview candidates, curate their professional background, preserve an interview story vault, track quantified impact metrics, log dual-format audit changelogs, and export directly to `cv-writer`.
 
 ## Key Capabilities
 
-1. **Iterative Conversational Curation**:
-   - The AI agent chats naturally with a candidate and invokes `patch_profile` incrementally as new details are learned.
-2. **Comprehensive Profile Model**:
-   - **Professional Background**: Education, work experiences/companies, personal/open-source projects, skills (categorized), certificates, spoken/written languages, awards, publications, and contact info.
-   - **Future Career Orientation**: Target roles (e.g. AI Engineer, Backend Engineer, Platform Engineer), preferred work locations/cities, target domains/industries, target seniority levels, work arrangements, and timelines.
-3. **Stateless & Decoupled Architecture**:
-   - Zero database or Redis dependencies. State is passed by the caller and returned in tool responses, ensuring complete isolation and ephemeral horizontal scaling.
-4. **Seamless Downstream Interoperability with `cv-writer`**:
-   - Provides an `export_to_cv_writer` tool that transforms a `CuratedProfile` directly into the exact `CvProfile` JSON schema accepted by `../cv-writer`'s `render_cv` tool.
+1. **CLI-First Architecture with LLM Guidance**:
+   - Designed for direct invocation by shell scripts, CI/CD, and conversational AI agents.
+   - Built-in `profile-curator guide --state profile.json` inspects completeness and recommends next conversational questions to ask the candidate.
+   - Self-describing `--help` flags provide step-by-step guidance tailored for LLM tool-calling contexts.
 
-## Exposed MCP Tools
+2. **Interview Story Vault (`stories`)**:
+   - Stores structured STAR experiences (Situation, Task, Action, Result, Learnings, Tags, Related Links).
+   - Prevents rich interview answers (trade-off decisions, outage post-mortems, conflict resolution) from being lost into single bullet lines.
 
-| Tool Name | Purpose |
+3. **First-Class Impact Metrics & KPIs**:
+   - Structured `impact_metrics` on roles and projects (e.g. `latency_p99_reduction: "-38%"`, `throughput: "1.8M req/s"`, `daily_volume: "$2B+"`) to power quantifiable, high-impact resume generation.
+
+4. **Atomic State I/O & Dual-Format Changelog**:
+   - Safe in-place file mutation via temporary file renaming to prevent state corruption during interruptions.
+   - `--changelog-dir <DIR>` records both machine-readable `.json` diff events and scannable `.md` narrative logs with `--message` context.
+
+5. **Downstream Interoperability with `cv-writer`**:
+   - `profile-curator export --state profile.json --output cv.json` outputs the exact schema required by `../cv-writer`.
+
+6. **Optional MCP Server Compatibility**:
+   - `profile-curator serve-mcp` runs the stdio JSON-RPC MCP server for compatibility with MCP clients.
+
+---
+
+## CLI Workflow for AI Agents & Users
+
+```bash
+# 1. Initialize profile (scaffold or realistic sample)
+profile-curator init --state profile.json
+# or bootstrap with sample:
+profile-curator init --sample --output profile.json
+
+# 2. Get conversational guidance on what questions to ask next
+profile-curator guide --state profile.json
+
+# 3. Patch profile incrementally as new details are learned
+profile-curator patch \
+  --state profile.json \
+  --patch-json '{"contact": {"name": "Alex Chen"}, "career_orientation": {"add_target_roles": ["AI Engineer"]}}' \
+  --changelog-dir ./history \
+  --message "Discovered candidate name and target role"
+
+# 4. Add a rich STAR interview story
+profile-curator patch \
+  --state profile.json \
+  --patch-json '{
+    "add_stories": [{
+      "id": "story-cache-scaling",
+      "title": "Scaling Distributed Cache",
+      "situation": "Contention during peak Black Friday load",
+      "task": "Rebalance hash partitions dynamically",
+      "action": "Implemented consistent hashing with virtual nodes in Rust",
+      "result": "Zero hotspots and 40% memory rebalance efficiency",
+      "tags": ["distributed-systems", "rust", "caching"]
+    }]
+  }' \
+  --changelog-dir ./history \
+  --message "Recorded distributed cache scaling STAR story"
+
+# 5. View changelog and session audit history
+profile-curator history --changelog-dir ./history
+
+# 6. Validate profile completeness
+profile-curator validate --state profile.json
+
+# 7. Export to cv-writer for PDF resume compilation
+profile-curator export --state profile.json --output cv_profile.json
+```
+
+---
+
+## Subcommand Reference
+
+| Subcommand | Purpose |
 | :--- | :--- |
-| `get_profile_schema` | Returns full JSON schema for `CuratedProfile`, `ProfilePatch`, and `CvWriterProfile`. |
-| `create_empty_profile` | Scaffolds a clean empty profile object to start an interview session. |
-| `get_sample_profile` | Returns a complete sample profile with both background and career orientation. |
-| `patch_profile` | Incrementally adds, updates, or removes sections/fields, returning updated profile + readable change diff. |
-| `validate_profile` | Analyzes profile completeness, critical gaps, and section coverage. |
-| `recommend_next_questions` | Returns targeted conversational questions for the agent to ask the user next. |
-| `export_to_cv_writer` | Transforms a `CuratedProfile` into `cv-writer`'s exact input format for PDF compilation. |
+| `init` | Create an empty or sample CuratedProfile scaffold. |
+| `guide` | Calculate readiness score, detect gaps, and suggest next conversational questions. |
+| `patch` | Apply incremental updates, atomically save state, and emit dual `.json` + `.md` changelog records. |
+| `validate` | Inspect completeness score (0-100), critical missing fields, and section coverage. |
+| `export` | Transform curated profile into `cv-writer`'s exact format. |
+| `history` | List and review past changelog narrative entries. |
+| `schema` | Dump JSON schemas for `profile`, `patch`, `cv_writer`, or `all`. |
+| `serve-mcp`| Launch the stdio JSON-RPC MCP server. |
 
-## Quickstart
+---
 
-### Build and Run with Cargo
+## Quality Assurance & Verification
+
 ```bash
-cargo build --release
-./target/release/profile-curator-mcp
-```
-
-### Run with Docker
-```bash
-docker build -t profile-curator-mcp .
-docker run -i --rm profile-curator-mcp
-```
-
-### Quality Assurance
-```bash
+# Run unit & integration tests (including CLI process testing)
 cargo test
+
+# Enforce strict zero-warning standard
 cargo clippy --all-targets -- -D warnings
 ```

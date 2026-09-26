@@ -1,6 +1,6 @@
-use profile_curator_mcp::mcp::{JsonRpcRequest, McpCallToolResult};
-use profile_curator_mcp::schema::CuratedProfile;
-use profile_curator_mcp::Server;
+use profile_curator::mcp::{JsonRpcRequest, McpCallToolResult, McpContentItem};
+use profile_curator::schema::CuratedProfile;
+use profile_curator::Server;
 use serde_json::json;
 
 #[tokio::test]
@@ -56,7 +56,7 @@ async fn test_conversational_incremental_patch_and_export_flow() {
     let resp = server.handle_request(create_req).await.unwrap();
     let call_res: McpCallToolResult = serde_json::from_value(resp.result.unwrap()).unwrap();
     let text = match &call_res.content[0] {
-        profile_curator_mcp::mcp::McpContentItem::Text { text } => text,
+        McpContentItem::Text { text } => text,
     };
     let mut current_profile: CuratedProfile = serde_json::from_str(text).unwrap();
 
@@ -90,7 +90,7 @@ async fn test_conversational_incremental_patch_and_export_flow() {
     let resp_1 = server.handle_request(patch_req_1).await.unwrap();
     let call_res_1: McpCallToolResult = serde_json::from_value(resp_1.result.unwrap()).unwrap();
     let text_1 = match &call_res_1.content[0] {
-        profile_curator_mcp::mcp::McpContentItem::Text { text } => text,
+        McpContentItem::Text { text } => text,
     };
     let parsed_1: serde_json::Value = serde_json::from_str(text_1).unwrap();
     current_profile = serde_json::from_value(parsed_1.get("updated_profile").unwrap().clone()).unwrap();
@@ -113,7 +113,7 @@ async fn test_conversational_incremental_patch_and_export_flow() {
     let resp_q = server.handle_request(questions_req).await.unwrap();
     let call_res_q: McpCallToolResult = serde_json::from_value(resp_q.result.unwrap()).unwrap();
     let text_q = match &call_res_q.content[0] {
-        profile_curator_mcp::mcp::McpContentItem::Text { text } => text,
+        McpContentItem::Text { text } => text,
     };
     assert!(text_q.contains("experience") || text_q.contains("skills"));
 
@@ -168,7 +168,7 @@ async fn test_conversational_incremental_patch_and_export_flow() {
     let resp_2 = server.handle_request(patch_req_2).await.unwrap();
     let call_res_2: McpCallToolResult = serde_json::from_value(resp_2.result.unwrap()).unwrap();
     let text_2 = match &call_res_2.content[0] {
-        profile_curator_mcp::mcp::McpContentItem::Text { text } => text,
+        McpContentItem::Text { text } => text,
     };
     let parsed_2: serde_json::Value = serde_json::from_str(text_2).unwrap();
     current_profile = serde_json::from_value(parsed_2.get("updated_profile").unwrap().clone()).unwrap();
@@ -188,7 +188,7 @@ async fn test_conversational_incremental_patch_and_export_flow() {
     let resp_exp = server.handle_request(export_req).await.unwrap();
     let call_res_exp: McpCallToolResult = serde_json::from_value(resp_exp.result.unwrap()).unwrap();
     let text_exp = match &call_res_exp.content[0] {
-        profile_curator_mcp::mcp::McpContentItem::Text { text } => text,
+        McpContentItem::Text { text } => text,
     };
     let parsed_exp: serde_json::Value = serde_json::from_str(text_exp).unwrap();
     let cv_profile = parsed_exp.get("cv_profile").expect("Expected cv_profile in export output");

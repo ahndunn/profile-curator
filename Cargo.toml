@@ -1,12 +1,14 @@
 [package]
-name = "profile-curator-mcp"
-version = "0.1.1"
+name = "profile-curator"
+version = "0.2.0"
 edition = "2024"
 authors = ["ahndunn@gmail.com"]
-description = "Stateless MCP server for iterative profile curation and cv-writer export"
+description = "Conversational profile curation CLI engine with interview story vault and cv-writer export"
 repository = "git@github.com:ahndunn/profile-curator.git"
 
 [dependencies]
+clap = { version = "4.5", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
 schemars = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -23,3 +25,4 @@ tokio-test = "0.4"
 [profile.dist]
 inherits = "release"
 lto = "thin"
+

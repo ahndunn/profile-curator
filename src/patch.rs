@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::schema::{
     AwardItem, CareerOrientation, CertificationItem, CompanyExperience,
-    CuratedProfile, EducationItem, LanguageItem, ProjectItem, PublicationItem, SkillCategory,
+    CuratedProfile, EducationItem, LanguageItem, ProjectItem, PublicationItem, SkillCategory, StoryItem,
 };
 
 /// High-level patch payload for updating a CuratedProfile.
@@ -67,6 +67,15 @@ pub struct ProfilePatch {
     /// Append new awards.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub add_awards: Vec<AwardItem>,
+    /// Append new interview stories / STAR experiences to the story vault.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub add_stories: Vec<StoryItem>,
+    /// Update existing interview story by ID or title.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub update_stories: Vec<StoryItem>,
+    /// Remove interview stories by ID or title.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remove_stories: Vec<String>,
     /// Update future career orientation fields.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub career_orientation: Option<CareerOrientationPatch>,
@@ -318,6 +327,34 @@ pub fn apply_patch(mut profile: CuratedProfile, patch: ProfilePatch) -> (Curated
         changes.push(format!("Added award: {title}"));
     }
 
+    // 10. Interview Stories Vault
+    for story in patch.add_stories {
+        let title = story.title.clone();
+        profile.background.stories.push(story);
+        changes.push(format!("Added interview story: {title}"));
+    }
+    for update in patch.update_stories {
+        let title = update.title.clone();
+        if let Some(existing) = profile.background.stories.iter_mut().find(|s| {
+            s.id == update.id || s.title.eq_ignore_ascii_case(&update.title)
+        }) {
+            *existing = update;
+            changes.push(format!("Updated interview story: {title}"));
+        } else {
+            profile.background.stories.push(update);
+            changes.push(format!("Added new interview story (not found for update): {title}"));
+        }
+    }
+    for rem in patch.remove_stories {
+        let initial_len = profile.background.stories.len();
+        profile.background.stories.retain(|s| {
+            s.id != rem && !s.title.eq_ignore_ascii_case(&rem)
+        });
+        if profile.background.stories.len() < initial_len {
+            changes.push(format!("Removed interview story: {rem}"));
+        }
+    }
+
     // 10. Future Career Orientation
     if let Some(co_patch) = patch.career_orientation {
         if let Some(full_replacement) = co_patch.replace_all {
@@ -426,4 +463,51 @@ mod tests {
         assert_eq!(langs.items, vec!["Rust", "Go"]);
         assert_eq!(updated.background.skills.len(), 2);
     }
+
+    #[test]
+    fn test_patch_story_vault() {
+        let initial = CuratedProfile::default();
+        let story = StoryItem {
+            id: "story-incident-1".to_string(),
+            title: "Database Outage Resolution".to_string(),
+            situation: "Primary DB failed during peak load".to_string(),
+            task: Some("Restore data safely within 15 min".to_string()),
+            action: "Promoted read replica and switched DNS".to_string(),
+            result: "Zero data loss and service restored in 8 min".to_string(),
+            learnings: Some("Automate replica promotion".to_string()),
+            tags: vec!["reliability".to_string(), "incident-management".to_string()],
+            related_experience_id: None,
+        };
+
+        let patch = ProfilePatch {
+            add_stories: vec![story],
+            ..Default::default()
+        };
+
+        let (updated, changes) = apply_patch(initial, patch);
+        assert_eq!(updated.background.stories.len(), 1);
+        assert_eq!(updated.background.stories[0].title, "Database Outage Resolution");
+        assert!(changes.iter().any(|c| c.contains("Added interview story")));
+
+        // Update story
+        let mut updated_story = updated.background.stories[0].clone();
+        updated_story.result = "Zero data loss, 5 min recovery".to_string();
+        let patch_update = ProfilePatch {
+            update_stories: vec![updated_story],
+            ..Default::default()
+        };
+        let (updated_2, changes_2) = apply_patch(updated, patch_update);
+        assert_eq!(updated_2.background.stories[0].result, "Zero data loss, 5 min recovery");
+        assert!(changes_2.iter().any(|c| c.contains("Updated interview story")));
+
+        // Remove story
+        let patch_remove = ProfilePatch {
+            remove_stories: vec!["story-incident-1".to_string()],
+            ..Default::default()
+        };
+        let (updated_3, changes_3) = apply_patch(updated_2, patch_remove);
+        assert_eq!(updated_3.background.stories.len(), 0);
+        assert!(changes_3.iter().any(|c| c.contains("Removed interview story")));
+    }
 }
+

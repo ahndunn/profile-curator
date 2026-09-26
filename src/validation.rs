@@ -25,6 +25,8 @@ pub struct SectionCoverage {
     pub has_experience: bool,
     pub has_projects: bool,
     pub has_skills: bool,
+    pub has_stories: bool,
+    pub has_impact_metrics: bool,
     pub has_target_roles: bool,
     pub has_target_locations: bool,
     pub has_target_seniorities: bool,
@@ -36,20 +38,20 @@ pub fn validate_profile(profile: &CuratedProfile) -> ValidationReport {
     let mut critical_gaps = Vec::new();
     let mut recommendations = Vec::new();
 
-    // 1. Contact Info (20 pts)
+    // 1. Contact Info (15 pts)
     let has_contact_name = profile.contact.name.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
     let has_contact_email = profile.contact.email.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
     let has_contact_phone = profile.contact.phone.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
     let has_contact_email_or_phone = has_contact_email || has_contact_phone;
 
     if has_contact_name {
-        score += 10;
+        score += 8;
     } else {
         critical_gaps.push("Candidate name is missing.".to_string());
     }
 
     if has_contact_email_or_phone {
-        score += 10;
+        score += 7;
     } else {
         critical_gaps.push("No contact channel (email or phone) provided.".to_string());
     }
@@ -58,25 +60,26 @@ pub fn validate_profile(profile: &CuratedProfile) -> ValidationReport {
         recommendations.push("Consider asking for a GitHub, LinkedIn, or personal website link.".to_string());
     }
 
-    // 2. Summary (10 pts)
+    // 2. Summary (5 pts)
     let has_summary = profile.background.summary.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
     if has_summary {
-        score += 10;
+        score += 5;
     } else {
         recommendations.push("Professional summary or objective statement is empty.".to_string());
     }
 
-    // 3. Experience (25 pts)
+    // 3. Experience & Impact Metrics (25 pts)
     let has_experience = !profile.background.experience.is_empty();
+    let mut total_metrics = 0;
     if has_experience {
-        score += 25;
-        // Check if any role lacks achievements/highlights
+        score += 15;
         let mut missing_highlights = 0;
         for exp in &profile.background.experience {
             for role in &exp.roles {
                 if role.highlights.is_empty() {
                     missing_highlights += 1;
                 }
+                total_metrics += role.impact_metrics.len();
             }
         }
         if missing_highlights > 0 {
@@ -86,6 +89,16 @@ pub fn validate_profile(profile: &CuratedProfile) -> ValidationReport {
         }
     } else {
         critical_gaps.push("No work experience / company history recorded.".to_string());
+    }
+
+    for proj in &profile.background.projects {
+        total_metrics += proj.impact_metrics.len();
+    }
+    let has_impact_metrics = total_metrics > 0;
+    if has_impact_metrics {
+        score += 10;
+    } else {
+        recommendations.push("No structured impact metrics / KPIs recorded. Quantifying results (e.g. latency reduction, revenue, throughput) strengthens CVs and interviews.".to_string());
     }
 
     // 4. Education & Projects (15 pts)
@@ -113,25 +126,33 @@ pub fn validate_profile(profile: &CuratedProfile) -> ValidationReport {
         critical_gaps.push("No technical or domain skills listed.".to_string());
     }
 
-    // 6. Career Orientation (20 pts)
+    // 6. Story Vault (15 pts)
+    let has_stories = !profile.background.stories.is_empty();
+    if has_stories {
+        score += 15;
+    } else {
+        recommendations.push("Interview story vault is empty. Capturing STAR answers (challenges, actions, trade-offs) will prepare the candidate for behavioral and system design interviews.".to_string());
+    }
+
+    // 7. Career Orientation (15 pts)
     let has_target_roles = !profile.career_orientation.target_roles.is_empty();
     let has_target_locations = !profile.career_orientation.preferred_locations.is_empty();
     let has_target_seniorities = !profile.career_orientation.target_seniorities.is_empty();
 
     if has_target_roles {
-        score += 8;
+        score += 7;
     } else {
         critical_gaps.push("Target roles (e.g. AI Engineer, Backend Engineer) are not defined.".to_string());
     }
 
     if has_target_locations {
-        score += 6;
+        score += 4;
     } else {
         recommendations.push("Preferred work locations / cities are not set.".to_string());
     }
 
     if has_target_seniorities {
-        score += 6;
+        score += 4;
     } else {
         recommendations.push("Target seniority level (e.g. Junior, Mid, Senior, Staff) is not set.".to_string());
     }
@@ -148,6 +169,8 @@ pub fn validate_profile(profile: &CuratedProfile) -> ValidationReport {
             has_experience,
             has_projects,
             has_skills,
+            has_stories,
+            has_impact_metrics,
             has_target_roles,
             has_target_locations,
             has_target_seniorities,
@@ -183,6 +206,10 @@ pub fn generate_next_questions(profile: &CuratedProfile) -> Vec<String> {
         questions.push("What are your primary programming languages, frameworks, or core technical skills?".to_string());
     }
 
+    if profile.background.stories.is_empty() {
+        questions.push("Can you share a challenging engineering challenge or outage recovery you led (situation, what you did, and quantifiable result)? We can save it into your interview story vault.".to_string());
+    }
+
     if profile.background.education.is_empty() {
         questions.push("Where did you study, and what degree or major did you graduate with?".to_string());
     }
@@ -192,7 +219,7 @@ pub fn generate_next_questions(profile: &CuratedProfile) -> Vec<String> {
     }
 
     if questions.is_empty() {
-        questions.push("Your profile is comprehensively filled out! Would you like to review any specific projects or export your profile into a resume with cv-writer?".to_string());
+        questions.push("Your profile is comprehensively filled out! Would you like to review your interview stories, refine impact metrics, or export to a resume via cv-writer?".to_string());
     }
 
     questions
