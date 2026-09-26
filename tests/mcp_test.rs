@@ -1,6 +1,6 @@
+use profile_curator::Server;
 use profile_curator::mcp::{JsonRpcRequest, McpCallToolResult, McpContentItem};
 use profile_curator::schema::CuratedProfile;
-use profile_curator::Server;
 use serde_json::json;
 
 #[tokio::test]
@@ -14,10 +14,16 @@ async fn test_mcp_initialize_and_tools_list() {
         method: "initialize".to_string(),
         params: None,
     };
-    let resp = server.handle_request(init_req).await.expect("Expected init response");
+    let resp = server
+        .handle_request(init_req)
+        .await
+        .expect("Expected init response");
     assert_eq!(resp.id, Some(json!(1)));
     let result = resp.result.expect("Expected result");
-    assert_eq!(result.get("serverInfo").unwrap().get("name").unwrap(), "profile-curator-mcp");
+    assert_eq!(
+        result.get("serverInfo").unwrap().get("name").unwrap(),
+        "profile-curator-mcp"
+    );
 
     // 2. Tools list
     let list_req = JsonRpcRequest {
@@ -26,11 +32,17 @@ async fn test_mcp_initialize_and_tools_list() {
         method: "tools/list".to_string(),
         params: None,
     };
-    let resp = server.handle_request(list_req).await.expect("Expected list response");
+    let resp = server
+        .handle_request(list_req)
+        .await
+        .expect("Expected list response");
     let result = resp.result.expect("Expected result");
     let tools = result.get("tools").unwrap().as_array().unwrap();
-    let tool_names: Vec<&str> = tools.iter().map(|t| t.get("name").unwrap().as_str().unwrap()).collect();
-    
+    let tool_names: Vec<&str> = tools
+        .iter()
+        .map(|t| t.get("name").unwrap().as_str().unwrap())
+        .collect();
+
     assert!(tool_names.contains(&"get_profile_schema"));
     assert!(tool_names.contains(&"create_empty_profile"));
     assert!(tool_names.contains(&"patch_profile"));
@@ -93,10 +105,14 @@ async fn test_conversational_incremental_patch_and_export_flow() {
         McpContentItem::Text { text } => text,
     };
     let parsed_1: serde_json::Value = serde_json::from_str(text_1).unwrap();
-    current_profile = serde_json::from_value(parsed_1.get("updated_profile").unwrap().clone()).unwrap();
+    current_profile =
+        serde_json::from_value(parsed_1.get("updated_profile").unwrap().clone()).unwrap();
 
     assert_eq!(current_profile.contact.name.as_deref(), Some("Minh Nguyen"));
-    assert_eq!(current_profile.career_orientation.target_roles, vec!["AI Engineer", "Backend Engineer"]);
+    assert_eq!(
+        current_profile.career_orientation.target_roles,
+        vec!["AI Engineer", "Backend Engineer"]
+    );
 
     // Step 3: Agent asks for recommendations to know what to ask next
     let questions_req = JsonRpcRequest {
@@ -171,7 +187,8 @@ async fn test_conversational_incremental_patch_and_export_flow() {
         McpContentItem::Text { text } => text,
     };
     let parsed_2: serde_json::Value = serde_json::from_str(text_2).unwrap();
-    current_profile = serde_json::from_value(parsed_2.get("updated_profile").unwrap().clone()).unwrap();
+    current_profile =
+        serde_json::from_value(parsed_2.get("updated_profile").unwrap().clone()).unwrap();
 
     // Step 5: Export to cv-writer
     let export_req = JsonRpcRequest {
@@ -191,12 +208,21 @@ async fn test_conversational_incremental_patch_and_export_flow() {
         McpContentItem::Text { text } => text,
     };
     let parsed_exp: serde_json::Value = serde_json::from_str(text_exp).unwrap();
-    let cv_profile = parsed_exp.get("cv_profile").expect("Expected cv_profile in export output");
+    let cv_profile = parsed_exp
+        .get("cv_profile")
+        .expect("Expected cv_profile in export output");
 
     // Verify cv_writer format compatibility
-    assert_eq!(cv_profile.get("contact").unwrap().get("name").unwrap(), "Minh Nguyen");
+    assert_eq!(
+        cv_profile.get("contact").unwrap().get("name").unwrap(),
+        "Minh Nguyen"
+    );
     let exp_arr = cv_profile.get("experience").unwrap().as_array().unwrap();
     assert_eq!(exp_arr[0].get("company").unwrap(), "VNG Corporation");
     let skills_arr = cv_profile.get("skills").unwrap().as_array().unwrap();
-    assert!(skills_arr.iter().any(|s| s.get("category").unwrap() == "Languages"));
+    assert!(
+        skills_arr
+            .iter()
+            .any(|s| s.get("category").unwrap() == "Languages")
+    );
 }
